@@ -13,6 +13,8 @@
 ##  lws.params             mean and stdev of lws trend (in m/year)
 ##  mod.time               time (in years) of the model simulation
 ##  obs.temp               mean global surface temperature anomalies, used if no climate module
+##  obs.emis               emissions by gas, used with Hector for projections
+##  hector.params          name of Hector .ini file (for use with the R package) and scenario name
 ##  ind.norm.data          indices within the model output for setting zero anomaly of calibration data fields
 ##  ind.norm.sl            indices within model output for setting zero sea level
 ##  tstep                  model tstep [years]
@@ -52,6 +54,8 @@ brick_model = function(parameters.in,
                        tstep = 1,
                        mod.time,
                        obs.temp = NULL,
+                       obs.emis = NULL,
+                       hector.ini = NULL,
                        ind.norm.data = NULL,
                        ind.norm.sl = NULL,
                        luse.brick,
@@ -144,7 +148,72 @@ brick_model = function(parameters.in,
     deltaH.couple = diff(doeclim.out$ocheat) * 10^22 #in Joules
     brick.out[[outcnt]] = doeclim.out; names(brick.out)[outcnt]="doeclim.out"; outcnt=outcnt+1;
 
+    }
+  
+  #=============================================================================
+  # Hector - climate and ocean energy balance
+  
+  if (luse.brick[,"luse.hector"]) {
+    
+    ## Grab the Hector parameters
+    S            =parameters.in[match("S"            ,parnames.in)]
+    kappa.doeclim=parameters.in[match("kappa.doeclim",parnames.in)]
+    alpha.doeclim=parameters.in[match("alpha.doeclim",parnames.in)]
+    T0           =parameters.in[match("T0"           ,parnames.in)]
+    H0           =parameters.in[match("H0"           ,parnames.in)]
+  
+    ## start the Hector core with some initialization file
+    inifile <- system.file(file.path('input', hector.params$ini), package='hector', mustWork=TRUE)
+    hcore <- newcore(inifile, suppresslogging=TRUE, name=hector.params$scenario)
+    
+    # if emissions are passed in, set those values
+    if (!is.null(obs.emis)) {
+      setvar(hcore, obs.emis$year, EMISSIONS_BC(), obs.emis[, 'BC'], getunits(EMISSIONS_BC()))
+      setvar(hcore, obs.emis$year, EMISSIONS_C2F6(), obs.emis[, 'C2F6'], getunits(EMISSIONS_C2F6()))
+      setvar(hcore, obs.emis$year, EMISSIONS_CF4(), obs.emis[, 'CF4'], getunits(EMISSIONS_CF4()))
+      setvar(hcore, obs.emis$year, EMISSIONS_CH4(), obs.emis[, 'CH4'], getunits(EMISSIONS_CH4()))
+      setvar(hcore, obs.emis$year, EMISSIONS_CO(), obs.emis[, 'CO'], getunits(EMISSIONS_CO()))
+      setvar(hcore, obs.emis$year, FFI_EMISSIONS(), obs.emis[, 'CO2'], getunits(FFI_EMISSIONS()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC125(), obs.emis[, 'HFC125'], getunits(EMISSIONS_HFC125()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC134A(), obs.emis[, 'HFC134a'], getunits(EMISSIONS_HFC134A()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC143A(), obs.emis[, 'HFC143a'], getunits(EMISSIONS_HFC143A()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC227EA(), obs.emis[, 'HFC227ea'], getunits(EMISSIONS_HFC227EA()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC23(), obs.emis[, 'HFC23'], getunits(EMISSIONS_HFC23()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC245FA(), obs.emis[, 'HFC245fa'], getunits(EMISSIONS_HFC245FA()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC32(), obs.emis[, 'HFC32'], getunits(EMISSIONS_HFC32()))
+      setvar(hcore, obs.emis$year, EMISSIONS_N2O(), obs.emis[, 'N2O'], getunits(EMISSIONS_N2O()))
+      setvar(hcore, obs.emis$year, EMISSIONS_NMVOC(), obs.emis[, 'NMVOC'], getunits(EMISSIONS_NMVOC()))
+      setvar(hcore, obs.emis$year, EMISSIONS_NOX(), obs.emis[, 'NOx'], getunits(EMISSIONS_NOX()))
+      setvar(hcore, obs.emis$year, EMISSIONS_OC(), obs.emis[, 'OC'], getunits(EMISSIONS_OC()))
+      setvar(hcore, obs.emis$year, EMISSIONS_SF6(), obs.emis[, 'SF6'], getunits(EMISSIONS_SF6()))
+      setvar(hcore, obs.emis$year, EMISSIONS_SO2(), obs.emis[, 'SO2'], getunits(EMISSIONS_SO2()))
+      setvar(hcore, obs.emis$year, LUC_EMISSIONS(), obs.emis[, 'LUC'], getunits(LUC_EMISSIONS()))
+    }    
+    
+    # run Hector at the parameter values
+    setvar(hcore, NA, ECS(), S, 'degC')
+    setvar(hcore, NA, DIFFUSIVITY(), kappa.doeclim], 'cm2/s')
+    setvar(hcore, NA, AERO_SCALE(), alpha.doeclim], '(unitless)')
+    begyear <- mod.time[1]
+    endyear <- mod.time[length(mod.time)]
+    run(hcore[[scen]],  endyear)
+    temp <- fetchvars(hcore, begyear:endyear, GLOBAL_TEMP())$value
+    flux_mixed <- fetchvars(hcore, begyear:endyear, FLUX_MIXED())$value
+    flux_interior <- fetchvars(hcore, begyear:endyear, FLUX_INTERIOR())$value
+    shutdown(hcore)
+    ocheat <- flux.to.heat(flux_mixed, flux_interior)
+    hector.out <- list(temp=temp, ocheat=ocheat)
+      
+    ## Normalize temperature and ocean heat to match the observations
+    itmp = ind.norm.data[match("temp",ind.norm.data[,1]),2]:ind.norm.data[match("temp",ind.norm.data[,1]),3]
+    hector.out$temp = hector.out$temp - mean(hector.out$temp[itmp])
+  
+    temp.preindustrial = hector.out$temp + T0
+    deltaH.couple = diff(hector.out$ocheat) * 10^22 #in Joules
+    brick.out[[outcnt]] = hector.out; names(brick.out)[outcnt]="hector.out"; outcnt=outcnt+1;
+    
   }
+  
 
   #=============================================================================
   # Establish coupling if there is no module to estimate global mean surface temperature
