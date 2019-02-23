@@ -43,7 +43,6 @@
 ## You should have received a copy of the GNU General Public License
 ## along with BRICK.  If not, see <http://www.gnu.org/licenses/>.
 ##==============================================================================
-
 brick_model = function(parameters.in,
                        parnames.in,
                        forcing.in,
@@ -55,7 +54,7 @@ brick_model = function(parameters.in,
                        mod.time,
                        obs.temp = NULL,
                        obs.emis = NULL,
-                       hector.ini = NULL,
+                       hector.params = NULL,
                        ind.norm.data = NULL,
                        ind.norm.sl = NULL,
                        luse.brick,
@@ -154,6 +153,7 @@ brick_model = function(parameters.in,
   # Hector - climate and ocean energy balance
   
   if (luse.brick[,"luse.hector"]) {
+    require(hector)
     
     ## Grab the Hector parameters
     S            =parameters.in[match("S"            ,parnames.in)]
@@ -161,9 +161,9 @@ brick_model = function(parameters.in,
     alpha.doeclim=parameters.in[match("alpha.doeclim",parnames.in)]
     T0           =parameters.in[match("T0"           ,parnames.in)]
     H0           =parameters.in[match("H0"           ,parnames.in)]
-  
+
     ## start the Hector core with some initialization file
-    inifile <- system.file(file.path('input', hector.params$ini), package='hector', mustWork=TRUE)
+    inifile <- system.file(file.path('input', hector.params$inifile), package='hector', mustWork=TRUE)
     hcore <- newcore(inifile, suppresslogging=TRUE, name=hector.params$scenario)
     
     # if emissions are passed in, set those values
@@ -192,26 +192,25 @@ brick_model = function(parameters.in,
     
     # run Hector at the parameter values
     setvar(hcore, NA, ECS(), S, 'degC')
-    setvar(hcore, NA, DIFFUSIVITY(), kappa.doeclim], 'cm2/s')
-    setvar(hcore, NA, AERO_SCALE(), alpha.doeclim], '(unitless)')
+    setvar(hcore, NA, DIFFUSIVITY(), kappa.doeclim, 'cm2/s')
+    setvar(hcore, NA, AERO_SCALE(), alpha.doeclim, '(unitless)')
     begyear <- mod.time[1]
     endyear <- mod.time[length(mod.time)]
-    run(hcore[[scen]],  endyear)
+    run(hcore,  endyear)
     temp <- fetchvars(hcore, begyear:endyear, GLOBAL_TEMP())$value
     flux_mixed <- fetchvars(hcore, begyear:endyear, FLUX_MIXED())$value
     flux_interior <- fetchvars(hcore, begyear:endyear, FLUX_INTERIOR())$value
     shutdown(hcore)
-    ocheat <- flux.to.heat(flux_mixed, flux_interior)
+    ocheat <- flux.to.heat(flux_mixed, flux_interior)$ocean.heat
     hector.out <- list(temp=temp, ocheat=ocheat)
       
     ## Normalize temperature and ocean heat to match the observations
     itmp = ind.norm.data[match("temp",ind.norm.data[,1]),2]:ind.norm.data[match("temp",ind.norm.data[,1]),3]
     hector.out$temp = hector.out$temp - mean(hector.out$temp[itmp])
-  
+
     temp.preindustrial = hector.out$temp + T0
     deltaH.couple = diff(hector.out$ocheat) * 10^22 #in Joules
     brick.out[[outcnt]] = hector.out; names(brick.out)[outcnt]="hector.out"; outcnt=outcnt+1;
-    
   }
   
 
@@ -219,7 +218,7 @@ brick_model = function(parameters.in,
   # Establish coupling if there is no module to estimate global mean surface temperature
   # Normalization period for obs.temp should match those passed by SNEASY and DOECLIM (1850-1870)
 
-  if (!luse.brick[,"luse.doeclim"] & !luse.brick[,"luse.sneasy"]) {temp.preindustrial=obs.temp}
+  if (!luse.brick[,"luse.doeclim"] & !luse.brick[, "luse.hector"] & !luse.brick[,"luse.sneasy"]) {temp.preindustrial=obs.temp}
 
   #=============================================================================
   # GSIC-MAGICC - glaciers and small ice caps
