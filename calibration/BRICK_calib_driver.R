@@ -28,7 +28,7 @@
 rm(list=ls())                        # Clear all previous variables
 
 ## Switch to your BRICK calibration directory
-setwd('~/codes/BRICK/calibration')
+setwd(file.path(Sys.getenv('HOME'), 'work', 'BRICK', 'calibration'))
 
 ## Set up MCMC stuff here so that it can be automated for HPC
 nnode_mcmc000 <- 3
@@ -102,6 +102,9 @@ source('../calibration/SIMPLE_readData.R')    # GIS data, and trends in mass bal
   ## TODO -- ind.norm.data, and i0
   ## TODO
 
+## set Hector information
+hector.params = list(inifile='hector_rcp45.ini', scenario='unnamed core')
+
 ## Gather up all the data/model indices for comparisons. use lists to avoid
 ## enormous amounts of input to the MCMC functions
 midx.all        = list(midx.temp,midx.ocheat,midx.gis,midx.gsic,midx.sl)
@@ -138,14 +141,15 @@ i0$gis = which(mod.time==1961)
 ## below, as well as into the "luse.brick = ..." command.
 ## Exactly one of te or tee must be TRUE.
 luse.sneasy   = FALSE    # Simple Nonlinear EArth SYstem model (DOECLIM+CCM)
-luse.doeclim  = TRUE    # diffusion-ocean-energy balance climate model
+luse.doeclim  = FALSE    # diffusion-ocean-energy balance climate model
+luse.hector   = TRUE    # hector climate model
 luse.gsic     = TRUE    # glaciers and small ice caps contribution to SLR
 luse.te       = TRUE    # thermosteric expansion contribution to SLR
 luse.tee      = FALSE   # explicit thermosteric expansion contribution to SLR
 luse.simple   = TRUE    # Greenland ice sheet model
 luse.dais     = FALSE    # Antarctic ice sheet model
 luse.lws      = FALSE    # land water storage
-luse.brick = cbind(luse.sneasy, luse.doeclim, luse.gsic, luse.te, luse.tee,
+luse.brick = cbind(luse.sneasy, luse.doeclim, luse.hector, luse.gsic, luse.te, luse.tee,
 		   luse.simple, luse.dais, luse.lws)
 
 ## If you are using DAIS, include the fast dynamics emulator?
@@ -238,7 +242,7 @@ CR.deoptim=0.9                        # as suggested by Storn et al (2006)
 outDEoptim <- DEoptim(minimize_residuals_brick, bound.lower[index.model], bound.upper[index.model],
         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
         parnames.in=parnames[index.model], forcing.in=forcing        , l.project=l.project      ,
-        slope.Ta2Tg.in=slope.Ta2Tg       , intercept.Ta2Tg.in=intercept.Ta2Tg,
+        slope.Ta2Tg.in=slope.Ta2Tg       , intercept.Ta2Tg.in=intercept.Ta2Tg, hector.params=hector.params,
         ind.norm.data=ind.norm.data      , ind.norm.sl=ind.norm      , mod.time=mod.time        ,
         tstep=tstep                      , oidx = oidx.all           , midx = midx.all          ,
         obs=obs.all                      , obs.err = obs.err.all     , trends.te = trends.te    ,
@@ -254,6 +258,7 @@ brick.out = brick_model(parameters.in=p0.deoptim,
                         #intercept.Ta2Tg.in=intercept.Ta2Tg,
                         mod.time=mod.time,
                         tstep=tstep,
+                        hector.params=hector.params,
                         ind.norm.data = ind.norm.data,
                         ind.norm.sl = ind.norm,
                         luse.brick = luse.brick,
@@ -327,7 +332,7 @@ if(nnode.mcmc == 1) {
   amcmc.out <- MCMC(log.post, niter.mcmc, p0.deoptim, scale=step.mcmc, adapt=TRUE, acc.rate=accept.mcmc,
                     gamma=gamma.mcmc               , list=TRUE                  , n.start=round(0.01*niter.mcmc),
                     parnames.in=parnames           , forcing.in=forcing         , l.project=l.project           ,
-                    slope.Ta2Tg.in=slope.Ta2Tg     , intercept.Ta2Tg.in=intercept.Ta2Tg,
+                    slope.Ta2Tg.in=slope.Ta2Tg     , intercept.Ta2Tg.in=intercept.Ta2Tg, hector.params=hector.params,
                     ind.norm.data=ind.norm.data    , ind.norm.sl=ind.norm       , mod.time=mod.time             ,
                     oidx = oidx.all                , midx = midx.all            , obs=obs.all                   ,
                     obs.err = obs.err.all          , trends.te = trends.te      , bound.lower.in=bound.lower    ,
@@ -342,7 +347,7 @@ if(nnode.mcmc == 1) {
                     scale=step.mcmc, adapt=TRUE, acc.rate=accept.mcmc,
                     gamma=gamma.mcmc, list=TRUE, n.start=round(0.01*niter.mcmc),
                     parnames.in=parnames           , forcing.in=forcing         , l.project=l.project           ,
-                    slope.Ta2Tg.in=slope.Ta2Tg     , intercept.Ta2Tg.in=intercept.Ta2Tg,
+                    slope.Ta2Tg.in=slope.Ta2Tg     , intercept.Ta2Tg.in=intercept.Ta2Tg, hector.params=hector.params,
                     ind.norm.data=ind.norm.data    , ind.norm.sl=ind.norm       , mod.time=mod.time             ,
                     oidx = oidx.all                , midx = midx.all            , obs=obs.all                   ,
                     obs.err = obs.err.all          , trends.te = trends.te      , bound.lower.in=bound.lower    ,
