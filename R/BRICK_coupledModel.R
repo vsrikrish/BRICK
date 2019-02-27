@@ -56,8 +56,9 @@ brick_model = function(parameters.in,
                        lws.params = NULL,
                        tstep = 1,
                        mod.time,
-                       hcore = NULL,
                        obs.temp = NULL,
+                       obs.emis = NULL,
+                       hector.params = NULL,
                        ind.norm.data = NULL,
                        ind.norm.sl = NULL,
                        luse.brick,
@@ -165,6 +166,34 @@ brick_model = function(parameters.in,
     T0           =parameters.in[match("T0"           ,parnames.in)]
     H0           =parameters.in[match("H0"           ,parnames.in)]
 
+    ## start the Hector core with some initialization file
+    inifile <- system.file(file.path('input', hector.params$inifile), package='hector', mustWork=TRUE)
+    hcore <- newcore(inifile, suppresslogging=TRUE, name=hector.params$scenario)
+    
+    # if emissions are passed in, set those values
+    if (!is.null(obs.emis)) {
+      setvar(hcore, obs.emis$year, EMISSIONS_BC(), obs.emis[, 'BC'], getunits(EMISSIONS_BC()))
+      setvar(hcore, obs.emis$year, EMISSIONS_C2F6(), obs.emis[, 'C2F6'], getunits(EMISSIONS_C2F6()))
+      setvar(hcore, obs.emis$year, EMISSIONS_CF4(), obs.emis[, 'CF4'], getunits(EMISSIONS_CF4()))
+      setvar(hcore, obs.emis$year, EMISSIONS_CH4(), obs.emis[, 'CH4'], getunits(EMISSIONS_CH4()))
+      setvar(hcore, obs.emis$year, EMISSIONS_CO(), obs.emis[, 'CO'], getunits(EMISSIONS_CO()))
+      setvar(hcore, obs.emis$year, FFI_EMISSIONS(), obs.emis[, 'CO2'], getunits(FFI_EMISSIONS()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC125(), obs.emis[, 'HFC125'], getunits(EMISSIONS_HFC125()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC134A(), obs.emis[, 'HFC134a'], getunits(EMISSIONS_HFC134A()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC143A(), obs.emis[, 'HFC143a'], getunits(EMISSIONS_HFC143A()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC227EA(), obs.emis[, 'HFC227ea'], getunits(EMISSIONS_HFC227EA()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC23(), obs.emis[, 'HFC23'], getunits(EMISSIONS_HFC23()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC245FA(), obs.emis[, 'HFC245fa'], getunits(EMISSIONS_HFC245FA()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC32(), obs.emis[, 'HFC32'], getunits(EMISSIONS_HFC32()))
+      setvar(hcore, obs.emis$year, EMISSIONS_N2O(), obs.emis[, 'N2O'], getunits(EMISSIONS_N2O()))
+      setvar(hcore, obs.emis$year, EMISSIONS_NMVOC(), obs.emis[, 'NMVOC'], getunits(EMISSIONS_NMVOC()))
+      setvar(hcore, obs.emis$year, EMISSIONS_NOX(), obs.emis[, 'NOx'], getunits(EMISSIONS_NOX()))
+      setvar(hcore, obs.emis$year, EMISSIONS_OC(), obs.emis[, 'OC'], getunits(EMISSIONS_OC()))
+      setvar(hcore, obs.emis$year, EMISSIONS_SF6(), obs.emis[, 'SF6'], getunits(EMISSIONS_SF6()))
+      setvar(hcore, obs.emis$year, EMISSIONS_SO2(), obs.emis[, 'SO2'], getunits(EMISSIONS_SO2()))
+      setvar(hcore, obs.emis$year, LUC_EMISSIONS(), obs.emis[, 'LUC'], getunits(LUC_EMISSIONS()))
+    }
+    
     # run Hector at the parameter values
     setvar(hcore, NA, ECS(), S, 'degC')
     setvar(hcore, NA, DIFFUSIVITY(), kappa.doeclim, 'cm2/s')
@@ -181,6 +210,7 @@ brick_model = function(parameters.in,
     temp <- fetchvars(hcore, begyear:endyear, GLOBAL_TEMP())$value
     flux_mixed <- fetchvars(hcore, begyear:endyear, FLUX_MIXED())$value
     flux_interior <- fetchvars(hcore, begyear:endyear, FLUX_INTERIOR())$value
+    shutdown(hcore)
     ocheat <- flux.to.heat(flux_mixed, flux_interior)$ocean.heat
     hector.out <- list(temp=temp, ocheat=ocheat)
       
