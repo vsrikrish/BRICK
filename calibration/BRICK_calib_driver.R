@@ -48,7 +48,6 @@ set.seed(1234)
 #set.seed(as.double(Sys.time())) # should yield same distributions... (a good test!)
 
 ## Needed libraries
-library(hector)
 library(adaptMCMC)
 library(DEoptim)
 library(ncdf4)
@@ -105,8 +104,7 @@ source('../calibration/SIMPLE_readData.R')    # GIS data, and trends in mass bal
 
 ## set Hector information
 hector.params = list(inifile='hector_rcp45.ini', scenario='unnamed core')
-## define observed emissions here
-obs.emis <- NULL
+
 
 ## Gather up all the data/model indices for comparisons. use lists to avoid
 ## enormous amounts of input to the MCMC functions
