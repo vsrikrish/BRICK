@@ -217,6 +217,41 @@ if(luse.sneasy) {
 
 }
 
+## set up the Hector core and pass in any emissions
+
+if (luse.hector) {
+      ## start the Hector core with some initialization file
+    inifile <- system.file(file.path('input', hector.params$inifile), package='hector', mustWork=TRUE)
+    hcore <- newcore(inifile, suppresslogging=TRUE, name=hector.params$scenario)
+    
+    # if emissions are passed in, set those values
+    if (!is.null(obs.emis)) {
+      setvar(hcore, obs.emis$year, EMISSIONS_BC(), obs.emis[, 'BC'], getunits(EMISSIONS_BC()))
+      setvar(hcore, obs.emis$year, EMISSIONS_C2F6(), obs.emis[, 'C2F6'], getunits(EMISSIONS_C2F6()))
+      setvar(hcore, obs.emis$year, EMISSIONS_CF4(), obs.emis[, 'CF4'], getunits(EMISSIONS_CF4()))
+      setvar(hcore, obs.emis$year, EMISSIONS_CH4(), obs.emis[, 'CH4'], getunits(EMISSIONS_CH4()))
+      setvar(hcore, obs.emis$year, EMISSIONS_CO(), obs.emis[, 'CO'], getunits(EMISSIONS_CO()))
+      setvar(hcore, obs.emis$year, FFI_EMISSIONS(), obs.emis[, 'CO2'], getunits(FFI_EMISSIONS()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC125(), obs.emis[, 'HFC125'], getunits(EMISSIONS_HFC125()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC134A(), obs.emis[, 'HFC134a'], getunits(EMISSIONS_HFC134A()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC143A(), obs.emis[, 'HFC143a'], getunits(EMISSIONS_HFC143A()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC227EA(), obs.emis[, 'HFC227ea'], getunits(EMISSIONS_HFC227EA()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC23(), obs.emis[, 'HFC23'], getunits(EMISSIONS_HFC23()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC245FA(), obs.emis[, 'HFC245fa'], getunits(EMISSIONS_HFC245FA()))
+      setvar(hcore, obs.emis$year, EMISSIONS_HFC32(), obs.emis[, 'HFC32'], getunits(EMISSIONS_HFC32()))
+      setvar(hcore, obs.emis$year, EMISSIONS_N2O(), obs.emis[, 'N2O'], getunits(EMISSIONS_N2O()))
+      setvar(hcore, obs.emis$year, EMISSIONS_NMVOC(), obs.emis[, 'NMVOC'], getunits(EMISSIONS_NMVOC()))
+      setvar(hcore, obs.emis$year, EMISSIONS_NOX(), obs.emis[, 'NOx'], getunits(EMISSIONS_NOX()))
+      setvar(hcore, obs.emis$year, EMISSIONS_OC(), obs.emis[, 'OC'], getunits(EMISSIONS_OC()))
+      setvar(hcore, obs.emis$year, EMISSIONS_SF6(), obs.emis[, 'SF6'], getunits(EMISSIONS_SF6()))
+      setvar(hcore, obs.emis$year, EMISSIONS_SO2(), obs.emis[, 'SO2'], getunits(EMISSIONS_SO2()))
+      setvar(hcore, obs.emis$year, LUC_EMISSIONS(), obs.emis[, 'LUC'], getunits(LUC_EMISSIONS()))
+    }
+    
+} else {
+  hcore <- NULL
+}
+
 ##==============================================================================
 ## Define the coupled model
 ## -> need it defined before DEoptim, so we can calculate the objective function
@@ -244,7 +279,7 @@ CR.deoptim=0.9                        # as suggested by Storn et al (2006)
 outDEoptim <- DEoptim(minimize_residuals_brick, bound.lower[index.model], bound.upper[index.model],
         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
         parnames.in=parnames[index.model], forcing.in=NULL        , l.project=l.project      ,
-        slope.Ta2Tg.in=slope.Ta2Tg       , intercept.Ta2Tg.in=intercept.Ta2Tg, hector.params=hector.params,
+        slope.Ta2Tg.in=slope.Ta2Tg       , intercept.Ta2Tg.in=intercept.Ta2Tg, hcore=hcore,
         ind.norm.data=ind.norm.data      , ind.norm.sl=ind.norm      , mod.time=mod.time        ,
         tstep=tstep                      , oidx = oidx.all           , midx = midx.all          ,
         obs=obs.all                      , obs.err = obs.err.all     , trends.te = trends.te    ,
@@ -260,14 +295,13 @@ brick.out = brick_model(parameters.in=p0.deoptim,
                         #intercept.Ta2Tg.in=intercept.Ta2Tg,
                         mod.time=mod.time,
                         tstep=tstep,
-                        hector.params=hector.params,
+                        hcore=hcore,
                         ind.norm.data = ind.norm.data,
                         ind.norm.sl = ind.norm,
                         luse.brick = luse.brick,
                         i0 = i0,
                         l.aisfastdy = l.aisfastdy)
 
-print(brick.out)
 
 ##TODO -- TW -- modify plotting for only the components that are used (incl SNEASY)
 if(l.doplots) {
@@ -337,7 +371,7 @@ if(nnode.mcmc == 1) {
   amcmc.out <- MCMC(log.post, niter.mcmc, p0.deoptim, scale=step.mcmc, adapt=TRUE, acc.rate=accept.mcmc,
                     gamma=gamma.mcmc               , list=TRUE                  , n.start=round(0.01*niter.mcmc),
                     parnames.in=parnames           , forcing.in=forcing         , l.project=l.project           ,
-                    slope.Ta2Tg.in=slope.Ta2Tg     , intercept.Ta2Tg.in=intercept.Ta2Tg, hector.params=hector.params,
+                    slope.Ta2Tg.in=slope.Ta2Tg     , intercept.Ta2Tg.in=intercept.Ta2Tg, hcore=hcore,
                     ind.norm.data=ind.norm.data    , ind.norm.sl=ind.norm       , mod.time=mod.time             ,
                     oidx = oidx.all                , midx = midx.all            , obs=obs.all                   ,
                     obs.err = obs.err.all          , trends.te = trends.te      , bound.lower.in=bound.lower    ,
@@ -352,7 +386,7 @@ if(nnode.mcmc == 1) {
                     scale=step.mcmc, adapt=TRUE, acc.rate=accept.mcmc,
                     gamma=gamma.mcmc, list=TRUE, n.start=round(0.01*niter.mcmc),
                     parnames.in=parnames           , forcing.in=forcing         , l.project=l.project           ,
-                    slope.Ta2Tg.in=slope.Ta2Tg     , intercept.Ta2Tg.in=intercept.Ta2Tg, hector.params=hector.params,
+                    slope.Ta2Tg.in=slope.Ta2Tg     , intercept.Ta2Tg.in=intercept.Ta2Tg, hcore=hcore,
                     ind.norm.data=ind.norm.data    , ind.norm.sl=ind.norm       , mod.time=mod.time             ,
                     oidx = oidx.all                , midx = midx.all            , obs=obs.all                   ,
                     obs.err = obs.err.all          , trends.te = trends.te      , bound.lower.in=bound.lower    ,
@@ -362,6 +396,7 @@ if(nnode.mcmc == 1) {
 }
 
 if(luse.sneasy) {cleanup.sneasy()}  # deallocates memory after SNEASY is done
+if(luse.hector) {shutdown(hcore)}   # shutdown Hector core
 
 ## Save workspace image - you do not want to re-simulate all those!
 save.image(file=filename.saveprogress)
@@ -373,7 +408,7 @@ t.beg <- proc.time()
 amcmc.extend <- MCMC.add.samples(amcmc.out, niter.mcmc,
                     parnames.in=parnames           , forcing.in=forcing         , l.project=l.project            ,
                     #slope.Ta2Tg.in=slope.Ta2Tg    , intercept.Ta2Tg.in=intercept.Ta2Tg,
-                    ind.norm.data=ind.norm.data    , ind.norm.sl=ind.norm       , mod.time=mod.time              ,
+                    ind.norm.data=ind.norm.data    , ind.norm.sl=ind.norm       , mod.time=mod.time, hcore=hcore         ,
                     oidx = oidx.all                , midx = midx.all            , obs=obs.all                    ,
                     obs.err = obs.err.all          , trends.te = trends.te      , bound.lower.in=bound.lower     ,
                     bound.upper.in=bound.upper     , shape.in=shape.invtau      , scale.in=scale.invtau          ,

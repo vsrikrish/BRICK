@@ -97,7 +97,7 @@ log.lik = function( parameters.in,
                     slope.Ta2Tg.in=1,
                     intercept.Ta2Tg.in=0,
                     mod.time,
-                    hector.params,
+                    hcore,
                     ind.norm.data,
                     ind.norm.sl,
                     midx,
@@ -118,54 +118,63 @@ log.lik = function( parameters.in,
                             slope.Ta2Tg.in=slope.Ta2Tg.in,
                             intercept.Ta2Tg.in=intercept.Ta2Tg.in,
                             mod.time=mod.time,
-	                          hector.params=hector.params,
+	                          hcore=hcore,
                             ind.norm.data=ind.norm.data,
                             ind.norm.sl=ind.norm.sl,
                             luse.brick=luse.brick,
                             i0=i0,
                             l.aisfastdy=l.aisfastdy
                           )
+                          
+  ## If brick.out returns NA (indicating an error), return a log-likelihood of -Inf
+  if (is.na(brick.out)) {
+    return(-Inf)
+  }
 
   ## Calculate contribution from temperature
 	llik.temp = 0
-  if(!is.null(oidx$temp) & (luse.brick[,"luse.doeclim"] | luse.brick[,"luse.hector"])) {
+	llik.ocheat = 0
+  
+  if ((luse.brick[,"luse.doeclim"] | luse.brick[,"luse.hector"])) {
 
-    # Grab the climate statistical parameters
-    T0        =parameters.in[match("T0"     ,parnames.in)]
-  	sigma.T   =parameters.in[match("sigma.T",parnames.in)]
-  	rho.T     =parameters.in[match("rho.T"  ,parnames.in)]
-
-    # Calculate the temperature residuals; apply AR1 error model
-  	if (luse.brick[,"luse.doeclim"]) {
-  	  temp <- brick.out$doeclim.out$temp[midx$temp]
-  	} else {
-  	  temp <- brick.out$hector.out$temp[midx$temp]
-  	}
-    resid.temp= obs$temp[oidx$temp] - (temp + T0)
-    llik.temp = logl.ar1(resid.temp, sigma.T, rho.T, obs.err$temp[oidx$temp]) # AR(1)
-
-  }
+    if (!is.null(oidx$temp)) {
+      # Grab the climate statistical parameters
+      T0        =parameters.in[match("T0"     ,parnames.in)]
+    	sigma.T   =parameters.in[match("sigma.T",parnames.in)]
+    	rho.T     =parameters.in[match("rho.T"  ,parnames.in)]
+  
+      # Calculate the temperature residuals; apply AR1 error model
+    	if (luse.brick[,"luse.doeclim"]) {
+    	  temp <- brick.out$doeclim.out$temp[midx$temp]
+    	} else {
+    	  temp <- brick.out$hector.out$temp[midx$temp]
+    	}
+      resid.temp= obs$temp[oidx$temp] - (temp + T0)
+      llik.temp = logl.ar1(resid.temp, sigma.T, rho.T, obs.err$temp[oidx$temp]) # AR(1)
+  
+    }
 	
   ## Calculate contribution from ocean heat
-  llik.ocheat = 0
-  if(!is.null(oidx$ocheat) & (luse.brick[,"luse.doeclim"]| luse.brick[,"luse.hector"])) {
+    if(!is.null(oidx$ocheat)) {
 
-    # Grab the DOECLIM statistical parameters
-  	H0        =parameters.in[match("H0"     ,parnames.in)]
-  	sigma.H   =parameters.in[match("sigma.H",parnames.in)]
-  	rho.H     =parameters.in[match("rho.H"  ,parnames.in)]
-
-    # Calculate the DOECLIM ocean heat residuals; apply AR1 error model
-  	if (luse.brick[,"luse.doeclim"]) {
-  	  ocheat <- brick.out$doeclim.out$ocheat[midx$ocheat]
-  	} else {
-  	  ocheat <- brick.out$hector.out$ocheat[midx$ocheat]
-  	}
-    resid.ocheat= obs$ocheat[oidx$ocheat] - (ocheat + H0)
-    llik.ocheat = logl.ar1(resid.ocheat, sigma.H, rho.H, obs.err$ocheat[oidx$ocheat]) # AR(1)
-
+      # Grab the DOECLIM statistical parameters
+    	H0        =parameters.in[match("H0"     ,parnames.in)]
+    	sigma.H   =parameters.in[match("sigma.H",parnames.in)]
+    	rho.H     =parameters.in[match("rho.H"  ,parnames.in)]
+  
+      # Calculate the DOECLIM ocean heat residuals; apply AR1 error model
+    	if (luse.brick[,"luse.doeclim"]) {
+    	  ocheat <- brick.out$doeclim.out$ocheat[midx$ocheat]
+    	} else {
+    	  ocheat <- brick.out$hector.out$ocheat[midx$ocheat]
+    	}
+      resid.ocheat= obs$ocheat[oidx$ocheat] - (ocheat + H0)
+      llik.ocheat = logl.ar1(resid.ocheat, sigma.H, rho.H, obs.err$ocheat[oidx$ocheat]) # AR(1)
+  
+    }
+  
   }
-
+  
   ## Calculate contribution from GSIC SLR
   llik.gsic = 0
   if(!is.null(oidx$gsic) & luse.brick[,"luse.gsic"]) {
