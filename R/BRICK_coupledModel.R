@@ -43,6 +43,10 @@
 ## You should have received a copy of the GNU General Public License
 ## along with BRICK.  If not, see <http://www.gnu.org/licenses/>.
 ##==============================================================================
+
+# function to find
+is.error <- function(x) inherits(x, "try-error")
+
 brick_model = function(parameters.in,
                        parnames.in,
                        forcing.in,
@@ -188,15 +192,21 @@ brick_model = function(parameters.in,
       setvar(hcore, obs.emis$year, EMISSIONS_SF6(), obs.emis[, 'SF6'], getunits(EMISSIONS_SF6()))
       setvar(hcore, obs.emis$year, EMISSIONS_SO2(), obs.emis[, 'SO2'], getunits(EMISSIONS_SO2()))
       setvar(hcore, obs.emis$year, LUC_EMISSIONS(), obs.emis[, 'LUC'], getunits(LUC_EMISSIONS()))
-    }    
+    }
     
     # run Hector at the parameter values
     setvar(hcore, NA, ECS(), S, 'degC')
     setvar(hcore, NA, DIFFUSIVITY(), kappa.doeclim, 'cm2/s')
     setvar(hcore, NA, AERO_SCALE(), alpha.doeclim, '(unitless)')
+    reset(hcore)
     begyear <- mod.time[1]
     endyear <- mod.time[length(mod.time)]
-    run(hcore,  endyear)
+    # since weird parameter values might get passed to Hector, we will try to run the core and catch an error if it fails
+    run_out <- try(run(hcore,  endyear), silent=TRUE)
+    # if the run failed, return NA
+    if (is.error(run_out)) {
+      return(NA)
+    }
     temp <- fetchvars(hcore, begyear:endyear, GLOBAL_TEMP())$value
     flux_mixed <- fetchvars(hcore, begyear:endyear, FLUX_MIXED())$value
     flux_interior <- fetchvars(hcore, begyear:endyear, FLUX_INTERIOR())$value

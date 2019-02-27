@@ -73,6 +73,11 @@ minimize_residuals_brick = function(
 													i0								=i0,
 													l.aisfastdy       =l.aisfastdy
 													)
+													
+	## if brick_model retunrs NA (from an error), return Inf as the residuals
+	if (is.na(brick.out)) {
+	  return(Inf)
+	}
 
 	doeclim.norm.resid=0
 	gsic.norm.resid=0
@@ -80,15 +85,25 @@ minimize_residuals_brick = function(
 	te.norm.resid=0
 	sl.norm.resid=0
 
-	if(luse.brick[,"luse.doeclim"]) {
+	if(luse.brick[,"luse.doeclim"] | luse.brick[,"luse.hector"]) {
   	if(!is.null(oidx$temp)) {
+  	  if (luse.brick[,"luse.doeclim"]) {
+  	    temp <- brick.out$doeclim.out$temp
+  	  } else {
+  	    temp <- brick.out$hector.out$temp
+  	  }
 			doeclim.norm.resid = doeclim.norm.resid +
-						mean(abs( (obs$temp[oidx$temp]-(brick.out$doeclim.out$temp[midx$temp]+T0)        )/
+						mean(abs( (obs$temp[oidx$temp]-(temp[midx$temp]+T0)        )/
     											obs.err$temp[oidx$temp]     ))
 		}
 		if(!is.null(oidx$ocheat)) {
+		  if (luse.brick[,"luse.doeclim"]) {
+		    ocheat <- brick.out$doeclim.out$ocheat
+		  } else {
+		    ocheat <- brick.out$hector.out$ocheat
+		  }
 			doeclim.norm.resid = doeclim.norm.resid +
-						mean(abs( (obs$ocheat[oidx$ocheat]-(brick.out$doeclim.out$ocheat[midx$ocheat]+H0))/
+						mean(abs( (obs$ocheat[oidx$ocheat]-(ocheat[midx$ocheat]+H0))/
 											  	obs.err$ocheat[oidx$ocheat] ))
 		}
 	}

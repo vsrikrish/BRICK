@@ -233,6 +233,8 @@ source('../R/BRICK_coupledModel.R')
 ##TODO -- causes problems in optimization.
 ##TODO
 
+print('minimizing residuals...')
+
 source('../calibration/BRICK_DEoptim.R')
 p0.deoptim=p0                          # initialize optimized initial parameters
 niter.deoptim=100                      # number of iterations for DE optimization
@@ -241,7 +243,7 @@ F.deoptim=0.8                          # as suggested by Storn et al (2006)
 CR.deoptim=0.9                        # as suggested by Storn et al (2006)
 outDEoptim <- DEoptim(minimize_residuals_brick, bound.lower[index.model], bound.upper[index.model],
         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-        parnames.in=parnames[index.model], forcing.in=forcing        , l.project=l.project      ,
+        parnames.in=parnames[index.model], forcing.in=NULL        , l.project=l.project      ,
         slope.Ta2Tg.in=slope.Ta2Tg       , intercept.Ta2Tg.in=intercept.Ta2Tg, hector.params=hector.params,
         ind.norm.data=ind.norm.data      , ind.norm.sl=ind.norm      , mod.time=mod.time        ,
         tstep=tstep                      , oidx = oidx.all           , midx = midx.all          ,
@@ -252,7 +254,7 @@ p0.deoptim[index.model] = outDEoptim$optim$bestmem
 ## Run the model and examine output at these parameter values
 brick.out = brick_model(parameters.in=p0.deoptim,
                         parnames.in=parnames,
-                        forcing.in=forcing,
+                        forcing.in=NULL,
                         l.project=l.project,
                         #slope.Ta2Tg.in=slope.Ta2Tg,
                         #intercept.Ta2Tg.in=intercept.Ta2Tg,
@@ -265,15 +267,17 @@ brick.out = brick_model(parameters.in=p0.deoptim,
                         i0 = i0,
                         l.aisfastdy = l.aisfastdy)
 
+print(brick.out)
+
 ##TODO -- TW -- modify plotting for only the components that are used (incl SNEASY)
 if(l.doplots) {
 par(mfrow=c(3,2))
   # plot 1 -- DOECLIM, temperature match
 plot(obs.temp.time[oidx.temp], obs.temp[oidx.temp], pch=20, ylab='surface temperature anomaly [deg C]', xlab='year')
-lines(brick.out$doeclim.out$time[midx.temp], brick.out$doeclim.out$temp[midx.temp]+p0.deoptim[4], col='red', lwd=2)
+lines(brick.out$hector.out$time[midx.temp], brick.out$hector.out$temp[midx.temp]+p0.deoptim[4], col='red', lwd=2)
   # plot 2 -- DOECLIM, ocean heat match
 plot(obs.ocheat.time[oidx.ocheat], obs.ocheat[oidx.ocheat], pch=20, ylab='ocean heat uptake [10^22 J]', xlab='year')
-lines(brick.out$doeclim.out$time[midx.ocheat], brick.out$doeclim.out$ocheat[midx.ocheat]+p0.deoptim[5], col='red', lwd=2)
+lines(brick.out$hector.out$time[midx.ocheat], brick.out$hector.out$ocheat[midx.ocheat]+p0.deoptim[5], col='red', lwd=2)
   # plot 3 -- GSIC match
 plot(obs.gsic.time, obs.gsic, pch=20, ylab = 'sea-level equivalence [m]', xlab='year')
 lines(obs.gsic.time, brick.out$gsic.out[midx.gsic], col="blue", lwd=2)
@@ -327,6 +331,7 @@ stopadapt.mcmc <- round(niter.mcmc*1.0)# stop adapting after ?? iterations? (nit
 ##==============================================================================
 ## Actually run the calibration
 
+print('running calibration...')
 if(nnode.mcmc == 1) {
   t.beg <- proc.time()
   amcmc.out <- MCMC(log.post, niter.mcmc, p0.deoptim, scale=step.mcmc, adapt=TRUE, acc.rate=accept.mcmc,
@@ -338,7 +343,7 @@ if(nnode.mcmc == 1) {
                     obs.err = obs.err.all          , trends.te = trends.te      , bound.lower.in=bound.lower    ,
                     bound.upper.in=bound.upper     , shape.in=shape.invtau      , scale.in=scale.invtau         ,
                     luse.brick=luse.brick          , i0=i0                      , l.aisfastdy=l.aisfastdy       )
-  t.end <- roc.time()
+  t.end <- proc.time()
   chain1 <- amcmc.out$samples
 } else if(nnode.mcmc > 1) {
   t.beg <- proc.time()
