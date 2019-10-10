@@ -159,12 +159,27 @@ brick_model = function(parameters.in,
   if (luse.brick[,"luse.hector"]) {
     require(hector)
     
+    # convert annual ocean heat flux (W/m^2) to cumulative ocean heat content anomaly (10^22 J)
+    flux.to.heat = function(heatflux.mixed, heatflux.interior)
+    {
+      flnd = 0.29 # area land fraction
+      fso = 0.95 # ocean area fraction of interior
+      secs.per.year = 31556926
+      earth.area = 510065600 * 10^6
+      ocean.area = (1-flnd)*earth.area
+      powtoheat = ocean.area*secs.per.year / 10^22 # in 10^22 J/yr
+      
+      heat.mixed = cumsum(heatflux.mixed) * powtoheat
+      heat.interior = fso * cumsum(heatflux.interior) * powtoheat
+      ocean.heat = heat.mixed + heat.interior
+      
+      return(list(ocean.heat=ocean.heat, heat.mixed=heat.mixed, heat.interior=heat.interior))
+    }
+    
     ## Grab the Hector parameters
-    S            =parameters.in[match("S"            ,parnames.in)]
-    kappa.doeclim=parameters.in[match("kappa.doeclim",parnames.in)]
-    alpha.doeclim=parameters.in[match("alpha.doeclim",parnames.in)]
-    T0           =parameters.in[match("T0"           ,parnames.in)]
-    H0           =parameters.in[match("H0"           ,parnames.in)]
+    S            =as.numeric(parameters.in[match("S.temperature",parnames.in)])
+    kappa        =as.numeric(parameters.in[match("diff.temperature",parnames.in)])
+    alpha        =as.numeric(parameters.in[match("alpha.temperature",parnames.in)])
 
     ## start the Hector core with some initialization file
     inifile <- system.file(file.path('input', hector.params$inifile), package='hector', mustWork=TRUE)
@@ -196,11 +211,11 @@ brick_model = function(parameters.in,
     
     # run Hector at the parameter values
     setvar(hcore, NA, ECS(), S, 'degC')
-    setvar(hcore, NA, DIFFUSIVITY(), kappa.doeclim, 'cm2/s')
-    setvar(hcore, NA, AERO_SCALE(), alpha.doeclim, '(unitless)')
-    reset(hcore)
+    setvar(hcore, NA, DIFFUSIVITY(), kappa, 'cm2/s')
+    setvar(hcore, NA, AERO_SCALE(), alpha, '(unitless)')
     begyear <- mod.time[1]
     endyear <- mod.time[length(mod.time)]
+    reset(hcore)
     # since weird parameter values might get passed to Hector, we will try to run the core and catch an error if it fails
     run_out <- try(run(hcore,  endyear), silent=TRUE)
     # if the run failed, return NA
@@ -218,7 +233,7 @@ brick_model = function(parameters.in,
     itmp = ind.norm.data[match("temp",ind.norm.data[,1]),2]:ind.norm.data[match("temp",ind.norm.data[,1]),3]
     hector.out$temp = hector.out$temp - mean(hector.out$temp[itmp])
 
-    temp.preindustrial = hector.out$temp + T0
+    temp.preindustrial = hector.out$temp
     deltaH.couple = diff(hector.out$ocheat) * 10^22 #in Joules
     brick.out[[outcnt]] = hector.out; names(brick.out)[outcnt]="hector.out"; outcnt=outcnt+1;
   }
@@ -236,10 +251,10 @@ brick_model = function(parameters.in,
   if (luse.brick[,"luse.gsic"]) {
 
     ## Grab the GSIC parameters
-    beta0  = parameters.in[match("beta0"  ,parnames.in)]
-    V0.gsic= parameters.in[match("V0.gsic",parnames.in)]
-    n      = parameters.in[match("n"      ,parnames.in)]
-    Gs0    = parameters.in[match("Gs0"    ,parnames.in)]
+    beta0  = parameters.in[match("beta0_gsic"  ,parnames.in)]
+    V0.gsic= parameters.in[match("V0_gsic",parnames.in)]
+    n      = parameters.in[match("n_gsic"      ,parnames.in)]
+    Gs0    = parameters.in[match("Gs0_gsic"    ,parnames.in)]
 
     ## Normalize temperature to match what the sub-model expects (the parameters
     ## may assume a particular time period associated with Tg=0, for example)
@@ -299,7 +314,7 @@ brick_model = function(parameters.in,
   if (luse.brick[,"luse.tee"]) {
 
     ## Grab the BRICK-TEE parameters
-    a.tee  =parameters.in[match("a.tee",parnames.in)]
+    a.tee  =parameters.in[match("a_tee",parnames.in)]
     TE0    =parameters.in[match("TE0"  ,parnames.in)]
 
     ## Run BRICK-TEE (explicit thermosteric expansion) model, using OHC output from DOECLIM
