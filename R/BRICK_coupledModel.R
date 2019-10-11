@@ -54,7 +54,7 @@ brick_model = function(parameters.in,
                        slope.Ta2Tg.in = 1,
                        intercept.Ta2Tg.in = 0,
                        lws.params = NULL,
-                       tstep = 1,
+                       t = 1,
                        mod.time,
                        obs.temp = NULL,
                        obs.emis = NULL,
@@ -128,7 +128,7 @@ brick_model = function(parameters.in,
     kappa.doeclim=parameters.in[match("kappa.doeclim",parnames.in)]
     alpha.doeclim=parameters.in[match("alpha.doeclim",parnames.in)]
     T0           =parameters.in[match("T0"           ,parnames.in)]
-    H0           =parameters.in[match("H0"           ,parnames.in)]
+    H0           =-32
 
     ## Set up the radiative forcing
     forcing.total = forcing_total(forcing=forcing.in,
@@ -177,10 +177,12 @@ brick_model = function(parameters.in,
     }
     
     ## Grab the Hector parameters
-    S            =as.numeric(parameters.in[match("S.temperature",parnames.in)])
-    kappa        =as.numeric(parameters.in[match("diff.temperature",parnames.in)])
-    alpha        =as.numeric(parameters.in[match("alpha.temperature",parnames.in)])
-    T0           =as.numeric(parameters.in[match("offset.Tgav_obs", parnames.in)])
+    S            =parameters.in[match("S.temperature",parnames.in)]
+    kappa        =parameters.in[match("diff.temperature",parnames.in)]
+    alpha        =parameters.in[match("alpha.temperature",parnames.in)]
+    T0           =parameters.in[match("offset.Tgav_obs", parnames.in)]
+    H0           = -32
+    
     ## start the Hector core with some initialization file
     inifile <- system.file(file.path('input', hector.params$inifile), package='hector', mustWork=TRUE)
     hcore <- newcore(inifile, suppresslogging=TRUE, name=hector.params$scenario)
@@ -249,7 +251,7 @@ brick_model = function(parameters.in,
   # GSIC-MAGICC - glaciers and small ice caps
 
   if (luse.brick[,"luse.gsic"]) {
-
+    
     ## Grab the GSIC parameters
     beta0  = parameters.in[match("beta0_gsic.slr_brick"  ,parnames.in)]
     V0.gsic= parameters.in[match("V0_gsic.slr_brick",parnames.in)]
@@ -264,16 +266,16 @@ brick_model = function(parameters.in,
     ## Run GSIC-MAGICC at these parameter values, using temperature output from DOECLIM
     gsic.out = gsic_magiccF(beta0=beta0, V0=V0.gsic, n=n, Gs0=Gs0 , Tg=temp.preindustrial, i0=i0$gsic)
 
+
     ## Subtract off normalization period model GSIC output as the zero point
     itmp = ind.norm.data[match("gsic",ind.norm.data[,1]),2]:ind.norm.data[match("gsic",ind.norm.data[,1]),3]
 
     gsic.out.norm = gsic.out - mean(gsic.out[itmp])
-
+    
     brick.out[[outcnt]] = gsic.out.norm; names(brick.out)[outcnt]="gsic.out"; outcnt=outcnt+1;
 
     ## Add this contribution to the total sea level rise
     slr.out = slr.out + (gsic.out - mean(gsic.out[ind.norm.sl]))
-
   }
 
   #=============================================================================
@@ -362,7 +364,7 @@ brick_model = function(parameters.in,
     brick.out[[outcnt]] = simple.out; names(brick.out)[outcnt]="simple.out"; outcnt=outcnt+1;
 
   }
-
+  
   #=============================================================================
   # DAIS - Antarctic ice sheet
 
@@ -407,7 +409,6 @@ brick_model = function(parameters.in,
                                                1.0*dSL.te[i-1]   )
       }
     }
-
     ## Normalize
     itmp = ind.norm.data[match("sl",ind.norm.data[,1]),2]:ind.norm.data[match("sl",ind.norm.data[,1]),3]
     SL.couple = SL.couple - mean(SL.couple[itmp])
