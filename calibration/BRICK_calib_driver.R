@@ -139,7 +139,7 @@ i0$gis = which(mod.time==1961)
 ##==============================================================================
 ## Which model(s) will you use?
 ## If you want to plug in your own model, insert the relevant "luse.XXX" line
-## below, as well as into the "luse.brick = ..." command.
+## below, as well as into the "luse.brick   = ..." command.
 ## Exactly one of te or tee must be TRUE.
 luse.sneasy   = FALSE    # Simple Nonlinear EArth SYstem model (DOECLIM+CCM)
 luse.doeclim  = FALSE    # diffusion-ocean-energy balance climate model
