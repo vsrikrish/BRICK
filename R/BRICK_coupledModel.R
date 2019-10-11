@@ -124,7 +124,7 @@ brick_model = function(parameters.in,
     if (luse.brick[,"luse.doeclim"]) {
 
     ## Grab the DOECLIM parameters
-    S            =parameters.in[match("S"            ,parnames.in)]
+    S            =parameters.in[match("S.doeclim"            ,parnames.in)]
     kappa.doeclim=parameters.in[match("kappa.doeclim",parnames.in)]
     alpha.doeclim=parameters.in[match("alpha.doeclim",parnames.in)]
     T0           =parameters.in[match("T0"           ,parnames.in)]
@@ -180,7 +180,7 @@ brick_model = function(parameters.in,
     S            =as.numeric(parameters.in[match("S.temperature",parnames.in)])
     kappa        =as.numeric(parameters.in[match("diff.temperature",parnames.in)])
     alpha        =as.numeric(parameters.in[match("alpha.temperature",parnames.in)])
-
+    T0           =as.numeric(parameters.in[match("offset.Tgav_obs", parnames.in)])
     ## start the Hector core with some initialization file
     inifile <- system.file(file.path('input', hector.params$inifile), package='hector', mustWork=TRUE)
     hcore <- newcore(inifile, suppresslogging=TRUE, name=hector.params$scenario)
@@ -233,7 +233,7 @@ brick_model = function(parameters.in,
     itmp = ind.norm.data[match("temp",ind.norm.data[,1]),2]:ind.norm.data[match("temp",ind.norm.data[,1]),3]
     hector.out$temp = hector.out$temp - mean(hector.out$temp[itmp])
 
-    temp.preindustrial = hector.out$temp
+    temp.preindustrial = hector.out$temp + T0
     deltaH.couple = diff(hector.out$ocheat) * 10^22 #in Joules
     brick.out[[outcnt]] = hector.out; names(brick.out)[outcnt]="hector.out"; outcnt=outcnt+1;
   }
@@ -251,10 +251,10 @@ brick_model = function(parameters.in,
   if (luse.brick[,"luse.gsic"]) {
 
     ## Grab the GSIC parameters
-    beta0  = parameters.in[match("beta0_gsic"  ,parnames.in)]
-    V0.gsic= parameters.in[match("V0_gsic",parnames.in)]
-    n      = parameters.in[match("n_gsic"      ,parnames.in)]
-    Gs0    = parameters.in[match("Gs0_gsic"    ,parnames.in)]
+    beta0  = parameters.in[match("beta0_gsic.slr_brick"  ,parnames.in)]
+    V0.gsic= parameters.in[match("V0_gsic.slr_brick",parnames.in)]
+    n      = parameters.in[match("n_gsic.slr_brick"      ,parnames.in)]
+    Gs0    = parameters.in[match("Gs0_gsic.slr_brick"    ,parnames.in)]
 
     ## Normalize temperature to match what the sub-model expects (the parameters
     ## may assume a particular time period associated with Tg=0, for example)
@@ -282,10 +282,10 @@ brick_model = function(parameters.in,
   if (luse.brick[,"luse.te"]) {
 
     ## Grab the BRICK-TE parameters
-    a.te     =parameters.in[match("a.te"     ,parnames.in)]
-    b.te     =parameters.in[match("b.te"     ,parnames.in)]
-    invtau.te=parameters.in[match("invtau.te",parnames.in)]
-    TE0      =parameters.in[match("TE0"      ,parnames.in)]
+    a.te     =parameters.in[match("a_te.slr_brick"     ,parnames.in)]
+    b.te     =parameters.in[match("b_te.slr_brick"     ,parnames.in)]
+    invtau.te=parameters.in[match("invtau_te.slr_brick",parnames.in)]
+  #  TE0      =parameters.in[match("TE0"      ,parnames.in)]
 
     ## Normalize temperature to match what the sub-model expects (the parameters
     ## may assume a particular time period associated with Tg=0, for example)
@@ -294,7 +294,7 @@ brick_model = function(parameters.in,
 
     ## Run BRICK-TE (thermosteric expansion) model, using temp output from DOECLIM
     ## i0$te=1
-    te.out = brick_te_F(a=a.te , b=b.te, invtau=invtau.te, TE_0=TE0, Tg=temp.preindustrial)
+    te.out = brick_te_F(a=a.te , b=b.te, invtau=invtau.te, Tg=temp.preindustrial)
 
     ## Subtract off normalization period
     itmp = ind.norm.data[match("te",ind.norm.data[,1]),2]:ind.norm.data[match("te",ind.norm.data[,1]),3]
@@ -314,12 +314,12 @@ brick_model = function(parameters.in,
   if (luse.brick[,"luse.tee"]) {
 
     ## Grab the BRICK-TEE parameters
-    a.tee  =parameters.in[match("a_tee",parnames.in)]
-    TE0    =parameters.in[match("TE0"  ,parnames.in)]
+    a.tee  =parameters.in[match("a_tee.slr_brick",parnames.in)]
+  #  TE0    =parameters.in[match("TE0"  ,parnames.in)]
 
     ## Run BRICK-TEE (explicit thermosteric expansion) model, using OHC output from DOECLIM
     ## i0$te=1
-    te.out = brick_tee_F(a=a.tee, TE_0=TE0, deltaH=deltaH.couple)
+    te.out = brick_tee_F(a=a.tee, deltaH=deltaH.couple)
 
     ## Subtract off normalization period
     itmp = ind.norm.data[match("te",ind.norm.data[,1]),2]:ind.norm.data[match("te",ind.norm.data[,1]),3]
@@ -337,11 +337,11 @@ brick_model = function(parameters.in,
   if (luse.brick[,"luse.simple"]) {
 
     ## Grab SIMPLE parameters
-    a.simple    =parameters.in[match("a.simple"    ,parnames.in)]
-    b.simple    =parameters.in[match("b.simple"    ,parnames.in)]
-    alpha.simple=parameters.in[match("alpha.simple",parnames.in)]
-    beta.simple =parameters.in[match("beta.simple" ,parnames.in)]
-    V0          =parameters.in[match("V0"          ,parnames.in)]
+    a.simple    =parameters.in[match("a_simple.slr_brick"    ,parnames.in)]
+    b.simple    =parameters.in[match("b_simple.slr_brick"    ,parnames.in)]
+    alpha.simple=parameters.in[match("alpha_simple.slr_brick",parnames.in)]
+    beta.simple =parameters.in[match("beta_simple.slr_brick" ,parnames.in)]
+    V0          =parameters.in[match("V0_simple.slr_brick"          ,parnames.in)]
 
     ## Normalize temperature to match what the sub-model expects (the parameters
     ## may assume a particular time period associated with Tg=0, for example)
@@ -369,22 +369,22 @@ brick_model = function(parameters.in,
   if (luse.brick[,"luse.dais"]) {
 
     ## Grab DAIS parameters
-    anto.a=parameters.in[match("anto.a",parnames.in)]
-    anto.b=parameters.in[match("anto.b",parnames.in)]
-    gamma =parameters.in[match("gamma" ,parnames.in)]
-    alpha.dais =parameters.in[match("alpha.dais" ,parnames.in)]
-    mu =parameters.in[match("mu" ,parnames.in)]
-    nu =parameters.in[match("nu" ,parnames.in)]
-    P0 =parameters.in[match("P0" ,parnames.in)]
-    kappa.dais =parameters.in[match("kappa.dais" ,parnames.in)]
-    f0 =parameters.in[match("f0" ,parnames.in)]
-    h0 =parameters.in[match("h0" ,parnames.in)]
-    c =parameters.in[match("c" ,parnames.in)]
-    b0 =parameters.in[match("b0" ,parnames.in)]
-    slope =parameters.in[match("slope" ,parnames.in)]
+    anto.a=parameters.in[match("anto.a.slr_brick",parnames.in)]
+    anto.b=parameters.in[match("anto.b.slr_brick",parnames.in)]
+    gamma =parameters.in[match("gamma.slr_brick" ,parnames.in)]
+    alpha.dais =parameters.in[match("alpha.dais.slr_brick" ,parnames.in)]
+    mu =parameters.in[match("mu.slr_brick" ,parnames.in)]
+    nu =parameters.in[match("nu.slr_brick" ,parnames.in)]
+    P0 =parameters.in[match("P0.slr_brick" ,parnames.in)]
+    kappa.dais =parameters.in[match("kappa.dais.slr_brick" ,parnames.in)]
+    f0 =parameters.in[match("f0.slr_brick" ,parnames.in)]
+    h0 =parameters.in[match("h0.slr_brick" ,parnames.in)]
+    c =parameters.in[match("c.slr_brick" ,parnames.in)]
+    b0 =parameters.in[match("b0.slr_brick" ,parnames.in)]
+    slope =parameters.in[match("slope.slr_brick" ,parnames.in)]
     if(l.aisfastdy) {
-      Tcrit = parameters.in[match("Tcrit",parnames.in)]
-      lambda = parameters.in[match("lambda",parnames.in)]
+      Tcrit = parameters.in[match("Tcrit.slr_brick",parnames.in)]
+      lambda = parameters.in[match("lambda.slr_brick",parnames.in)]
     } else {
       Tcrit = NULL
       lambda = NULL
