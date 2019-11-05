@@ -51,10 +51,10 @@ brick_model = function(parameters.in,
                        parnames.in,
                        forcing.in,
                        l.project = FALSE,
-                       slope.Ta2Tg.in = 1,
-                       intercept.Ta2Tg.in = 0,
+                       slope.Ta2Tg.in = 0.8364527,
+                       intercept.Ta2Tg.in = 15.4235,
                        lws.params = NULL,
-                       t = 1,
+                       tstep = 1,
                        mod.time,
                        obs.temp = NULL,
                        obs.emis = NULL,
@@ -181,7 +181,7 @@ brick_model = function(parameters.in,
     kappa        =parameters.in[match("diff.temperature",parnames.in)]
     alpha        =parameters.in[match("alpha.temperature",parnames.in)]
     T0           =parameters.in[match("offset.Tgav_obs", parnames.in)]
-    H0           = -32
+    H0           = 0
     
     ## start the Hector core with some initialization file
     inifile <- system.file(file.path('input', hector.params$inifile), package='hector', mustWork=TRUE)
@@ -229,13 +229,17 @@ brick_model = function(parameters.in,
     flux_interior <- fetchvars(hcore, begyear:endyear, FLUX_INTERIOR())$value
     shutdown(hcore)
     ocheat <- flux.to.heat(flux_mixed, flux_interior)$ocean.heat
-    hector.out <- list(temp=temp, ocheat=ocheat)
+    temp <- temp + T0
       
-    ## Normalize temperature and ocean heat to match the observations
-    itmp = ind.norm.data[match("temp",ind.norm.data[,1]),2]:ind.norm.data[match("temp",ind.norm.data[,1]),3]
-    hector.out$temp = hector.out$temp - mean(hector.out$temp[itmp])
+    ## Normalize temperature
+    itmp <- ind.norm.data[match("temp",ind.norm.data[,1]),2]:ind.norm.data[match("temp",ind.norm.data[,1]),3]
+    temp <- temp - mean(temp[itmp])
+#    ioc <- ind.norm.data[match("ocheat",ind.norm.data[,1]),2]:ind.norm.data[match("ocheat",ind.norm.data[,1]),3]
+#    ocheat <- ocheat - mean(ocheat[ioc])
 
-    temp.preindustrial = hector.out$temp + T0
+    hector.out <- list(temp=temp, ocheat=ocheat)
+    
+    temp.preindustrial = hector.out$temp
     deltaH.couple = diff(hector.out$ocheat) * 10^22 #in Joules
     brick.out[[outcnt]] = hector.out; names(brick.out)[outcnt]="hector.out"; outcnt=outcnt+1;
   }
